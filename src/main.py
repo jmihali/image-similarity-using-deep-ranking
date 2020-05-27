@@ -12,9 +12,16 @@ import torch.nn as nn
 import torch.backends.cudnn as cudnn
 
 import argparse
-
-from utils import TinyImageNetLoader, train
+from utils import train, calculate_distance
 from net import *
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import transforms
+from torch.utils.data import DataLoader, random_split
+from foodDataset import FoodDataset
+import numpy as np
 
 
 # Instantiate the parser
@@ -64,11 +71,15 @@ def main():
 
     # For training on GPU, we need to transfer net and data onto the GPU
     # http://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#training-on-gpu
+
     if args.is_gpu:
         print("==> Initialize CUDA support for TripletNet model ...")
-        net = torch.nn.DataParallel(net).cuda()
+        device = torch.device('cuda:0')
+        net = torch.nn.DataParallel(net).to(device)
         cudnn.benchmark = True
 
+
+    """
     # resume training from the last time
     if args.resume:
         # Load checkpoint
@@ -83,6 +94,7 @@ def main():
         # start over
         print('==> Building new TripletNet model ...')
         net = TripletNet(resnet101())
+    """
 
     # Loss function, optimizer and scheduler
     criterion = nn.TripletMarginLoss(margin=args.g, p=args.p)
@@ -97,14 +109,65 @@ def main():
                                                            patience=10,
                                                            verbose=True)
 
+
+    """
     # load triplet dataset
     trainloader, testloader = TinyImageNetLoader(args.dataroot,
                                                  args.batch_size_train,
                                                  args.batch_size_test)
 
-    # train model
-    train(net, criterion, optimizer, scheduler, trainloader,
-          testloader, args.start_epoch, args.epochs, args.is_gpu)
+    """
+
+    # preparing dataloader
+
+    # these are the transforms we make the food images
+    data_transform = transforms.Compose([
+        transforms.Resize((225, 225)),  # resizing
+        transforms.ToTensor(),  # transform image to a tensor
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # normalization from [0, 1] to [-1, 1]
+    ])
+
+    food_dataset = FoodDataset(file='/home/jmihali/Projects/image-similarity-using-deep-ranking/src/train_triplets.txt', root_dir='/home/jmihali/Projects/image-similarity-using-deep-ranking/food',
+                               transform=data_transform, label=False)
+
+    train_set_length = int(0.95 * len(food_dataset))
+    val_set_length = len(food_dataset) - train_set_length
+    print("Train set length:            ", train_set_length)
+    print("Validation set length:       ", val_set_length)
+
+    # in case you want to split the data:
+    #train_data, val_data = random_split(food_dataset, [train_set_length, val_set_length])
+    #trainloader = DataLoader(train_data, batch_size=10, shuffle=True, num_workers=4)
+    #testloader = DataLoader(val_data, batch_size=10, shuffle=True, num_workers=4)
+
+
+    trainloader = DataLoader(food_dataset, batch_size=10, shuffle=True, num_workers=4)
+
+    #train model
+    train(net, criterion, optimizer, scheduler, trainloader, None, args.start_epoch, args.epochs, args.is_gpu)
+
+
+    #### PREDICT ON TEST SET #####
+    print("Predicting on test set...")
+    test_dataset = FoodDataset(file='/home/jmihali/Projects/image-similarity-using-deep-ranking/src/test_triplets.txt', root_dir='/home/jmihali/Projects/image-similarity-using-deep-ranking/food',
+                               transform=data_transform, label=False)
+    test_data_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
+
+    net.eval()
+    predictions = []
+    for data in test_data_loader:
+        img1_batch = data[0].to(device)
+        img2_batch = data[1].to(device)
+        img3_batch = data[2].to(device)
+
+        f = net(img1_batch, img2_batch, img3_batch)
+        if (torch.dist(f[0],f[1]) < torch.dist(f[0], f[2])):
+            predictions.append(1)
+        else:
+            predictions.append(0)
+
+    np.savetxt(fname='predictions.txt', fmt="%d", X=predictions)
+    print("Prediction saved")
 
 
 if __name__ == '__main__':

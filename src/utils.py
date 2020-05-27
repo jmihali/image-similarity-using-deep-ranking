@@ -142,7 +142,7 @@ def calculate_distance(i1, i2):
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     """Save checkpoint."""
-    directory = "../checkpoint"
+    directory = "../checkpoint/"
     if not os.path.exists(directory):
         os.makedirs(directory)
     filename = directory + filename
