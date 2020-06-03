@@ -110,10 +110,12 @@ def train(net, criterion, optimizer, scheduler, trainloader,
             optimizer.step()
 
             # print statistics
-            running_loss += loss.data[0]
+            running_loss += loss.item()
 
             if batch_idx % 30 == 0:
-                print("mini Batch Loss: {}".format(loss.data[0]))
+                print("mini Batch Loss: {}".format(loss.item()))
+
+        #scheduler.step() # reduces learning rate on plateau
 
         # Normalizing the loss by the total number of train batches
         running_loss /= len(trainloader)
@@ -142,7 +144,7 @@ def calculate_distance(i1, i2):
 
 def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
     """Save checkpoint."""
-    directory = "../checkpoint/"
+    directory = "./checkpoint/"
     if not os.path.exists(directory):
         os.makedirs(directory)
     filename = directory + filename

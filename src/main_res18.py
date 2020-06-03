@@ -66,7 +66,7 @@ args = parser.parse_args()
 
 def main():
     """Main pipeline of Image Similarity using Deep Ranking."""
-    net = TripletNet(resnet101()) # resnet101 should be pretrained
+    net = TripletNet(resnet18()) # resnet101 should be pretrained
 
     # For training on GPU, we need to transfer net and data onto the GPU
     # http://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html#training-on-gpu
@@ -171,7 +171,7 @@ def main():
             else:
                 predictions.append(0)
 
-    np.savetxt(fname='predictions.txt', fmt="%d", X=predictions)
+    np.savetxt(fname='predictions_res18.txt', fmt="%d", X=predictions)
     print("Prediction saved")
 
     

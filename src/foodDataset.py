@@ -7,7 +7,7 @@ import os
 
 class FoodDataset(Dataset):
     def __init__(self, file, root_dir, transform=None, label=True):
-        self.food_frame = pd.read_csv(file, dtype=str, sep=' ')
+        self.food_frame = pd.read_csv(file, dtype=str, sep=' ', header=None)
         self.root_dir = root_dir
         self.transform = transform
         self.label = label
